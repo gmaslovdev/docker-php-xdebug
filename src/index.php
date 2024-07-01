@@ -1,10 +1,6 @@
 <?php
 
+$a = 10;
+echo $a;
 
 phpinfo();
-
-echo '<pre>';
-var_dump($_ENV);
-$name = "ee";
-
-echo $name;
