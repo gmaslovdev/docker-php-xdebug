@@ -1,6 +1,2 @@
 <?php
-
-$a = 10;
-echo $a;
-
-phpinfo();
+echo "<h1>Hello PHP</h1>";

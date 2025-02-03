@@ -1,0 +1,1 @@
+sudo systemctl stop apache2 -- остановка сервера apache2

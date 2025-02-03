@@ -1,3 +1,5 @@
+version: '3.8'  # Указываем версию схемы Docker Compose
+
 services:
   php:
     build: ./docker/php
@@ -5,28 +7,63 @@ services:
       - './src:/var/www/html'
     environment:
       PHP_IDE_CONFIG: "serverName=docker-cli"
+      XDEBUG_MODE: debug  # Включаем режим отладки
+      XDEBUG_CONFIG: "client_host=host.docker.internal client_port=9003"  # Конфигурация Xdebug
+    depends_on:
+      mysql:
+        condition: service_healthy  # Ждем, пока MySQL не станет здоровым
+    networks:
+      - app-network
 
   nginx:
-    image: nginx:latest
+    image: nginx:1.25-alpine  # Используем конкретную версию и легковесный alpine-образ
     ports:
       - 80:80
     volumes:
       - './src:/var/www/html'
       - './docker/nginx/conf.d:/etc/nginx/conf.d'
+    depends_on:
+      php:
+        condition: service_started  # Ждем запуска PHP
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   mysql:
-    image: mysql:8
+    image: mysql:latest  # Фиксируем версию MySQL
     environment:
-      - MYSQL_ROOT_PASSWORD=root
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-secret}  # Используем переменную окружения
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-app_db}  # Создаем базу данных при старте
+      MYSQL_USER: ${MYSQL_USER:-app_user}  # Создаем пользователя
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-secret}  # Пароль пользователя
     volumes:
       - './docker/volume/mysql:/var/lib/mysql'
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
   phpmyadmin:
-    image: phpmyadmin/phpmyadmin
-    links:
-      - mysql:mysql
+    image: phpmyadmin/phpmyadmin:latest
+    depends_on:
+      mysql:
+        condition: service_healthy  # Ждем, пока MySQL не станет здоровым
     ports:
       - 8080:80
     environment:
       PMA_HOST: mysql
       PMA_PORT: 3306
       PMA_ARBITRARY: 1
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge  # Создаем пользовательскую сеть для изоляции сервисов
